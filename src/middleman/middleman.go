@@ -2,12 +2,15 @@ package middleman
 
 import (
 	. "GoMiddleMan/src/models"
-	"github.com/teivah/gosiris/gosiris"
+	"errors"
+	"github.com/gotenks82/gosiris/gosiris"
 	"log"
 	"sync"
+	"time"
 )
 
 const middlemanActorName = "middleman"
+const defaultTimeout = 3 * time.Second
 
 type (
 	middleMan struct {
@@ -39,29 +42,63 @@ func (m *middleMan) Shutdown() {
 	_ = gosiris.CloseActorSystem()
 }
 
-func (m *middleMan) AddInterest(userId string, i Interest) {
+func getMiddleManActorRef() gosiris.ActorRefInterface {
 	actorRef, err := gosiris.ActorSystem().ActorOf(middlemanActorName)
 	if err != nil {
 		log.Fatal("Could not find middleman actor")
-	} else {
+	}
+	return actorRef
+}
+
+func (m *middleMan) AddInterest(userId string, i Interest) {
+	actorRef := getMiddleManActorRef()
+	if actorRef != nil {
 		msgToUser := msgToUser{
-			dest: userId,
+			dest:    userId,
 			msgType: addInterestMsg,
 			data: UserInterest{
 				UserId:   userId,
 				Interest: i,
 			},
 		}
-
 		_ = actorRef.Tell(gosiris.EmptyContext, sendToUserMsg, msgToUser, actorRef)
-
 	}
 }
 
-func (actor *userActor) sendToUser(msg msgToUser) {
-	err := getMiddleManActorRef().Tell(gosiris.EmptyContext, sendToUserMsg, msg, actor.actorRef)
+func (m *middleMan) GetNotifications(userId string) []string {
+	var notifications []string
+	reply, _ := askQuestionToUser(userId, getNotificationsMsg, nil)
+	if reply != nil {
+		notifications = reply.([]string)
+	}
+	return notifications
+}
 
-	if err != nil {
-		log.Print(err.Error())
+func askQuestionToUser(userId string, msgType string, data interface{}) (interface{}, error) {
+	actorRef := getMiddleManActorRef()
+
+	if actorRef != nil {
+		askToUser := askToUser{
+			dest: userId,
+			question: question{
+				msgType:      msgType,
+				replyMsgType: askToUserMsg,
+				data:         data,
+			},
+		}
+		return actorRef.Ask(gosiris.EmptyContext, askToUserMsg, askToUser, defaultTimeout)
+	}
+
+	return nil, errors.New("could not get middleman actor")
+}
+
+func sendMessage(msgType string, msg interface{}, src gosiris.ActorRefInterface) {
+	actorRef := getMiddleManActorRef()
+	if actorRef != nil {
+		err := actorRef.Tell(gosiris.EmptyContext, msgType, msg, src)
+
+		if err != nil {
+			log.Print(err.Error())
+		}
 	}
 }

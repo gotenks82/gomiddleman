@@ -15,6 +15,8 @@ type (
 	User struct {
 		Id string `json:"id"`
 		Interests []Interest `json:"interests"`
+		Trades []TradeOpportunity `json:"tradeOpportunities"`
+		Notifications []string `json:"notifications"`
 	}
 
 	UserInterest struct {
@@ -26,6 +28,10 @@ type (
 		Id string `json:"id"`
 		RootUserId string `json:"rootUserId"`
 		Steps []UserInterest `json:"steps"`
+	}
+
+	NotificationsList struct {
+		Notifications []string `json:"notifications"`
 	}
 )
 
@@ -40,6 +46,20 @@ func buildInterest() Interest {
 
 func (user *User) AddInterest(interest Interest) {
 	user.Interests = append(user.Interests, interest)
+}
+
+func (user *User) AddTrade(trade TradeOpportunity) {
+	user.Trades = append(user.Trades, trade)
+}
+
+func (user *User) AddNotification(notification string) {
+	user.Notifications = append(user.Notifications, notification)
+}
+
+func (user *User) GetAndResetNotifications() []string {
+	notifications := user.Notifications
+	user.Notifications = make([]string, 0)
+	return notifications
 }
 
 func (src TradeOpportunity) clone() TradeOpportunity {
